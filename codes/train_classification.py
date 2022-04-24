@@ -23,8 +23,8 @@ parser.add_argument('--model', type=str, default='', help='model path')
 parser.add_argument('--nepoch', type=int, default=50, help='number of epochs to train for')
 parser.add_argument('--outf', type=str, default='cls', help='output folder')
 parser.add_argument('--dataset', type=str, required=True, help="dataset path")
-parser.add_argument('--feature_transform', default=True, help="use feature transform")
-parser.add_argument('--save_dir', default='../pretrained_networks', help='directory to save model weights')
+parser.add_argument('--feature_transform', default=False, help="use feature transform")
+parser.add_argument('--save_dir', default='../pretrain', help='directory to save model weights')
 
 opt = parser.parse_args()
 print(opt)
@@ -70,7 +70,7 @@ try:
 except OSError:
     pass
 
-classifier = PointNetCls(num_classes=num_classes, feature_transform=opt.feature_transform)
+classifier = PointNetCls(num_classes=num_classes, feature_transform=False)
 if opt.model != '':
     classifier.load_state_dict(torch.load(opt.model))
 optimizer = optim.Adam(classifier.parameters(), lr=0.001, betas=(0.9, 0.999))
@@ -90,7 +90,8 @@ for epoch in range(opt.nepoch):
         optimizer.zero_grad()
         pred, trans, trans_feat = classifier(points)
         loss = F.nll_loss(pred, target)
-        if opt.feature_transform:
+        if opt.feature_transform == True:
+            print(opt.feature_transform)
             loss += feature_transform_regularizer(trans_feat) * 0.001
         loss.backward()
         optimizer.step()
@@ -101,7 +102,7 @@ for epoch in range(opt.nepoch):
 
     torch.save({'model':classifier.state_dict(),
                 'optimizer': optimizer.state_dict(),
-                'epoch': epoch}, os.path.join(opt.save_dir, 'latest_classification_without_feature_transform.pt'))
+                'epoch': epoch}, os.path.join(opt.save_dir, 'classification_without_transform.pt'))
 
     classifier.eval()
     total_preds = []

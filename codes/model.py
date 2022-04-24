@@ -85,14 +85,17 @@ class TNet(nn.Module):
         x.view(batch_size, self.k, self.k)
         #TODO
         # define an identity matrix to add to the output. This will help with the stability of the results since we want our transformations to be close to identity
-        iden = Variable(torch.from_numpy(np.eye(self.k).flatten().astype(np.float32))).view(1,self.k*self.k).repeat(batch_size,1)
+        identity_matrix = Variable(torch.from_numpy(np.eye(self.k).flatten().astype(np.float32))).view(1,self.k*self.k).repeat(batch_size,1)
         if x.is_cuda:
-            iden = iden.cuda()
-        x = x + iden
-        x = x.view(-1, self.k, self.k)
+            identity_matrix = identity_matrix.cuda()
+        
+        
+
 
         #TODO
         # return output
+        x = x + identity_matrix
+        x = x.view(-1, self.k, self.k)
         return x
 
 
@@ -115,7 +118,8 @@ class PointNetfeat(nn.Module):
         #TODO
         # Use TNet to apply transformation on features and multiply the input features with the transformation 
         #                                                                        (if feature_transform is true)
-
+        if self.feature_transform:
+            self.tnet2 = TNet(k=64)
         #TODO
         # layer2: 64 -> 128
         self.conv2 = nn.Sequential(nn.Conv1d(64, 128, 1), 
@@ -130,8 +134,7 @@ class PointNetfeat(nn.Module):
         # ReLU activation
         self.relu = nn.ReLU()
 
-        if self.feature_transform:
-            self.tnet2 = TNet(k=64)
+
 
 
     def forward(self, x):
