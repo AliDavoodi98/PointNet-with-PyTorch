@@ -81,6 +81,22 @@ for epoch in range(opt.nepoch):
         points, target = points.cuda(), target.cuda()
         #TODO
         # perform forward and backward paths, optimize network
+        optimizer.zero_grad()
+        classifier = classifier.train()
+        pred, trans, trans_feat = classifier(points)
+        pred = pred.view(-1, num_classes)
+        target = target.view(-1, 1)[:, 0] - 1
+        #print(pred.size(), target.size())
+        loss = F.nll_loss(pred, target)
+        if opt.feature_transform:
+            loss += feature_transform_regularizer(trans_feat) * 0.001
+        loss.backward()
+        optimizer.step()
+        pred_choice = pred.data.max(1)[1]
+        correct = pred_choice.eq(target.data).cpu().sum()
+        print('[%d: %d/%d] train loss: %f accuracy: %f' % (epoch, i, num_batch, loss.item(), correct.item()/float(opt.batchSize * 2500)))
+
+    
 
     torch.save({'model':classifier.state_dict(),
                 'optimizer': optimizer.state_dict(),
@@ -96,7 +112,7 @@ for epoch in range(opt.nepoch):
             points = points.transpose(2, 1)
             points, target = points.cuda(), target.cuda()
             pred, _, _ = classifier(points)
-            pred_choice = pred.data.max(1)[1]
+            pred_choice = pred.data.max(2)[1]
 
             pred_np = pred_choice.cpu().data.numpy()
             target_np = target.cpu().data.numpy() - 1

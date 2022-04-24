@@ -21,17 +21,17 @@ class TNet(nn.Module):
         # Each layer has batchnorm and relu on it
         #TODO
         # layer 1: k -> 64
-        self.conv1 = nn.Sequential(nn.Conv2d(self.k, 64, 1), 
+        self.conv1 = nn.Sequential(nn.Conv1d(self.k, 64, 1), 
             nn.BatchNorm1d(64), 
             nn.ReLU(True))
         #TODO
         # layer 2:  64 -> 128
-        self.conv2 = nn.Sequential(nn.Conv2d(64, 128, 1), 
+        self.conv2 = nn.Sequential(nn.Conv1d(64, 128, 1), 
             nn.BatchNorm1d(128), 
             nn.ReLU(True))
         #TODO
         # layer 3: 128 -> 1024
-        self.conv3 = nn.Sequential(nn.Conv2d(128, 1024, 1), 
+        self.conv3 = nn.Sequential(nn.Conv1d(128, 1024, 1), 
             nn.BatchNorm1d(1024), 
             nn.ReLU(True))
         #TODO
@@ -106,7 +106,7 @@ class PointNetfeat(nn.Module):
 
         #TODO
         # Use TNet to apply transformation on input and multiply the input points with the transformation
-        self.tnet = TNet()
+        self.tnet = TNet(3)
         #TODO
         # layer 1:3 -> 64
         self.conv1 = nn.Sequential(nn.Conv1d(3, 64, 1), 
@@ -125,10 +125,13 @@ class PointNetfeat(nn.Module):
         #TODO
         # layer 3: 128 -> 1024 (no relu)
         self.conv3 = nn.Sequential(nn.Conv1d(128, 1024, 1), 
-            nn.BatchNorm1d(128))
+            nn.BatchNorm1d(1024))
         #TODO
         # ReLU activation
         self.relu = nn.ReLU()
+
+        if self.feature_transform:
+            self.tnet2 = TNet(k=64)
 
 
     def forward(self, x):
@@ -145,7 +148,7 @@ class PointNetfeat(nn.Module):
         #TODO
         # feature transformation, you will need to return the transformation matrix as you will need it for the regularization loss
         if self.feature_transform:
-            transform2 = self.tnet(x)
+            transform2 = self.tnet2(x)
             x = x.transpose(2,1)
             x = torch.bmm(x, transform2)
             x = x.transpose(2,1)
@@ -165,10 +168,10 @@ class PointNetfeat(nn.Module):
         #TODO
         # return output, input transformation matrix, feature transformation matrix
         if self.global_feat: # This shows if we're doing classification or segmentation
-            if self.feature_transform:
+            
                 return x, transform, transform2  
         else:
-            if self.feature_transform:
+    
                 x = x.view(-1, 1024, 1).repeat(1, 1, num_points)
                 return torch.cat([x, pointfeat], 1), transform, transform2
 
@@ -228,7 +231,7 @@ class PointNetDenseCls(nn.Module):
         #TODO
         # layer 4:  128 -> k (no ru and batch norm)
         self.conv4 = nn.Sequential(
-            nn.Linear(128, self.num_classes, 1)
+            nn.Conv1d(128, self.num_classes, 1)
         )
 
         #TODO
@@ -243,7 +246,7 @@ class PointNetDenseCls(nn.Module):
         # trans_feat = output of applying TNet function to features (if feature_transform is true)
         # (you can directly get them from PointNetfeat)
         batch_size, _, num_points = x.shape
-        x, trans, trans_feat = self.feat(x)
+        x, trans, trans_feat = self.pointfeat(x)
 
         #TODO
         # apply layer 1
@@ -260,7 +263,8 @@ class PointNetDenseCls(nn.Module):
         #TODO
         # apply log-softmax
         x = x.transpose(2,1).contiguous()
-        x = F.log_softmax(x.view(-1,self.k), dim=-1)
+        x = F.log_softmax(x.view(-1,self.num_classes), dim=-1)
+        
         x = x.view(batch_size, num_points, self.num_classes)
         return x, trans, trans_feat
 

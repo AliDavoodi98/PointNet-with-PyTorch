@@ -29,7 +29,7 @@ test_dataloader = torch.utils.data.DataLoader(
     shuffle=True,
     num_workers=4)
 
-classifier = PointNetCls(num_classes=len(test_dataset.classes))
+classifier = PointNetCls(num_classes=len(test_dataset.classes), feature_transform=False)
 classifier.cuda()
 classifier.load_state_dict(torch.load(opt.model)['model'])
 classifier.eval()
